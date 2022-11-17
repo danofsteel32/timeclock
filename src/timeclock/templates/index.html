@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Timeclock{% endblock %}
+
+{% block content %}
+<main>
+  <h1>Timeclock</h1>
+  {% if current_user.is_authenticated %}
+    <p>View {{ current_user.username }}'s <a href="{{ url_for('timeclock.timesheet') }}">Timesheet</a></p>
+    {% if clocked_in %}
+      <p>Clocked in</p>
+    {% else %}
+      <p>Not clocked in</p>
+    {% endif %}
+  {% else %}
+    <a href="{{ url_for('timeclock.auth.login') }}">Login to access timeclock</a>
+  {% endif %}
+</main>
+{% endblock %}

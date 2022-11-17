@@ -87,7 +87,7 @@ tests() {
 }
 
 default() {
-    wrapped_python -i -c 'import timeclock'
+    wrapped_python -m flask --app timeclock --debug run
 }
 
 TIMEFORMAT="Task completed in %3lR"

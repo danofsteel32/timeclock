@@ -56,6 +56,9 @@ class TimeSheet:
             _hours += diff.hours + (diff.minutes / 60)
         return round(_hours * 4.0) / 4.0
 
+    def mark_paid(self) -> None:
+        return
+
     @classmethod
     def from_db(
         cls, user: User, start_date: pendulum.DateTime, pay_period: int = 2

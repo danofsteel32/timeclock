@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+{% block head %}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mvp.css') }}">
+<title>{% block title %}{% endblock %}</title>
+{% endblock %}
+</head>
+
+<body>
+<script src="{{ url_for('static', filename='js/htmx/htmx.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/htmx/ext/sse.js') }}"></script>
+<script src="{{ url_for('static', filename='js/htmx/ext/json-enc.js') }}"></script>
+{% block content %}{% endblock %}
+
+<footer>
+  &copy; Copyright 2022 by <a href="https://dandavis.dev">Dan Davis</a>.
+</footer>
+</body>
+
+</html>
