@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Timesheet{% endblock %}
+
+{% block content %}
+<main id="content">
+  <h1>Timesheet</h1>
+  <p>Viewing current hours for <strong>{{ user.username }}</strong>. Check the box to add the workday to
+    the timesheet. Click the date to view/edit the workday.
+  </p>
+  {% if timesheet.work_days %}
+  <h3 id="hours_selected">Hours Selected: 0.0</h3>
+  <form hx-swap="none" class="embedded-form" hx-post="{{ url_for('timeclock.save_timesheet') }}" hx-ext="json-enc">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Clock In</th>
+          <th>Clock Out</th>
+          <th>Hours</th>
+          <th>Notes</th>
+          <th>Select</th>
+        </tr>
+      </thead>
+      <tbody>
+    {% for wd in timesheet.work_days|reverse %}
+        <tr>
+          <td><a href="{{ url_for('timeclock.workday.get_workday', id=wd.id) }}">{{ wd.date }}</a></td>
+          <td>{{ wd.clock_in.format("h:mmA") }}</td>
+          <td>{{ wd.clock_out.format("h:mmA") }}</td>
+          <td>{{ wd.hours }}</td>
+          <td>{{ wd.notes[:12] }}...</a></td>
+          <td>
+            <input
+              hx-post="{{ url_for('timeclock.workday.select_workday') }}"
+              type="checkbox"
+              name="{{ wd.id }}"
+              value="1">
+          </td>
+        </tr>
+    {% endfor %}
+      </tbody>
+    </table>
+    <input type="hidden" name="user_id" value="{{ user.id }}">
+    <label for="notes">Notes</label>
+    <textarea id="notes" name="notes" rows="6" cols="60"></textarea>
+    <input type="submit" value="Save">
+  </form>
+  {% endif %}
+  <h3>Past Timesheets</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Start Date</th>
+        <th>End Date</th>
+        <th>Hours</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for ts in past_timesheets %}
+      <tr>
+        <td><a href="{{ url_for('timeclock.timesheet', id=ts.id) }}">{{ ts.id }}</a></td>
+        <td>{{ ts.start_date }}</td>
+        <td>{{ ts.end_date }}</td>
+        <td>{{ ts.hours }}</td>
+        <td>{{ ts.notes[:12] }}...</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</main>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}{{workday.date}}{% endblock %}
+
+{% block content %}
+<main id="content">
+  <h1>Workday {{ workday.date }}</h1>
+  <p>Currently logged in as {{ current_user.username }}. <a href="{{ url_for('timeclock.auth.logout') }}">Logout</a></p>
+  {% if edit %}
+  <h3>Edit</h3>
+  <form hx-swap="none" hx-post="{{ url_for('timeclock.workday.update_workday', id=workday.id) }}" hx-ext="json-enc">
+    <label for="clock_in">Clock In</label>
+    <input id="clock_in" type="time" name="clock_in" value="{{ workday.clock_in.format('HH:mm') }}">
+    <label for="clock_out">Clock Out</label>
+    <input id="clock_out" type="time" name="clock_out" value="{{ workday.clock_out.format('HH:mm') }}">
+    <label for="notes">Notes</label>
+    <textarea id="notes" name="notes" rows="6" cols="60">{{ workday.notes }}</textarea>
+    <input type="submit" value="Save">
+  </form>
+  {% else %}
+  <h3>View</h3>
+  <ul>
+    <li>Clock In: {{ workday.clock_in.format('H:mmA') }}</li>
+    <li>Clock Out: {{ workday.clock_out.format('H:mmA') }}</li>
+    <li>Hours: {{ workday.hours }}</li>
+    <li>Notes: {{ workday.notes }}</li>
+  </ul>
+  {% for p in workday.photos %}
+  <img src="{ p.fullpath }">
+  {% endfor %}
+  {% endif %}
+</main>
+{% endblock %}

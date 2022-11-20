@@ -1,0 +1,20 @@
+    <div id="timeclock_forms">
+      <form
+        class="embedded-form"
+        hx-ext="json-enc"
+        hx-swap="none"
+        hx-post="{{ url_for('timeclock.workday.workday_notes', id=workday.id) }}">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="6" cols="60">{{ workday.notes or '' }}</textarea>
+        <input type="submit" value="Update Notes">
+      </form>
+      <form
+        class="embedded-form"
+        hx-ext="json-enc"
+        hx-swap="none"
+        hx-put="{{ url_for('timeclock.workday.upload_photo', id=workday.id) }}">
+        <label for="photo">Photo Upload</label>
+        <input type="file" id="photo", name="photo" accept="image/png image/jpeg">
+        <input type="submit" value="Upload Photo">
+      </form>
+    </div>

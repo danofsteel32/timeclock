@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Timesheet{% endblock %}
+
+{% block content %}
+<main id="content">
+  <h1>Timesheet</h1>
+  <p>Currently logged in as {{ current_user.username }}. <a href="{{ url_for('timeclock.auth.logout') }}">Logout</a>
+  </p>
+  <p>Viewing your current timesheet. This does not include today if you are currently clocked in.</p>
+  <p>Go to the <a href="{{ url_for('timeclock.index') }}">timeclock</a> page to see today.</p>
+  <h3>Current Hours: {{ timesheet.hours }}</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Clock In</th>
+        <th>Clock Out</th>
+        <th>Hours</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+  {% for wd in timesheet.work_days|reverse %}
+      <tr>
+        <td><a href="{{ url_for('timeclock.workday.get_workday', id=wd.id) }}">{{ wd.date }}</a></td>
+        <td>{{ wd.clock_in.format("h:mmA") }}</td>
+        <td>{{ wd.clock_out.format("h:mmA") }}</td>
+        <td>{{ wd.hours }}</td>
+        <td>{{ wd.notes[:16] }}...</td>
+      </tr>
+  {% endfor %}
+    </tbody>
+  </table>
+  <h3>Past Timesheets</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Start Date</th>
+        <th>End Date</th>
+        <th>Hours</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for ts in past_timesheets %}
+      <tr>
+        <td><a href="{{ url_for('timeclock.timesheet', id=ts.id) }}">{{ ts.id }}</a></td>
+        <td>{{ ts.start_date }}</td>
+        <td>{{ ts.end_date }}</td>
+        <td>{{ ts.hours }}</td>
+        <td>{{ ts.notes[:16] }}...</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</main>
+{% endblock %}

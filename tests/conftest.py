@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pendulum
 import pytest
+from flask_login import FlaskLoginClient
 
-from timeclock import timeclock
+from timeclock import create_app, timeclock, timesheet, users, workday
 from timeclock.db import create_db
-from timeclock.users import delete_user, register_user
 
 
 @pytest.fixture(scope="session")
@@ -20,35 +20,60 @@ def DB():
 
 
 @pytest.fixture(scope="session")
-def existing_user(DB):
-    email = "tman@test.com"
-    yield register_user(email, "pass123")
-    delete_user(email)
-
-
-@pytest.fixture
-def punched_in(DB, existing_user):
-    punch_id, clock_in = timeclock.clock_in(existing_user)
-    yield punch_id, clock_in
-    timeclock._manual_delete_punch(punch_id)
+def admin_user(DB):
+    yield users.register_user(
+        "admin@test.com", "adminpass", users.Role.ADMIN, "adminator"
+    )
 
 
 @pytest.fixture(scope="session")
-def fake_timesheet(existing_user):
+def owner_user(DB):
+    yield users.register_user("owner@test.com", "ownerpass", users.Role.OWNER, "owned")
+
+
+@pytest.fixture(scope="session")
+def employee_user(DB):
+    yield users.register_user(
+        "employee@test.com", "employeepass", users.Role.EMPLOYEE, "employed"
+    )
+
+
+@pytest.fixture
+def employee_workday(DB, employee_user):
+    wd = timeclock.clock_in(employee_user)
+    yield wd
+    workday._manual_delete_workday(wd.id)
+
+
+@pytest.fixture(scope="session")
+def fake_timesheet(employee_user):
     start_date = pendulum.local(2022, 1, 3)
     work_days = []
     for n in range(14):
         d = start_date.add(days=n)
         if d.weekday() < 4:
-            wd = timeclock.WorkDay(n + 1, d.add(hours=8), d.add(hours=16))
+            wd = workday.WorkDay(clock_in=d.add(hours=8), clock_out=d.add(hours=16))
             work_days.append(wd)
         elif d.weekday() == 4:
             # start a lil late on fridays
-            wd = timeclock.WorkDay(
-                n + 1, d.add(hours=8, minutes=10 + n), d.add(hours=15)
+            wd = workday.WorkDay(
+                clock_in=d.add(hours=8, minutes=10 + n), clock_out=d.add(hours=15)
             )
             work_days.append(wd)
-    timesheet = timeclock.TimeSheet(
-        existing_user, start_date=start_date, work_days=work_days
-    )
-    return timesheet
+    ts = timesheet.TimeSheet(work_days=work_days)
+    return ts
+
+
+@pytest.fixture(scope="session")
+def fake_timesheet_db(employee_user, fake_timesheet):
+    for wd in fake_timesheet.work_days:
+        wd._insert(employee_user)
+
+
+@pytest.fixture
+def app(DB):
+    app = create_app()
+    if not app.config["TESTING"]:
+        raise RuntimeError("TIMECLOCK_TESTING=1 must be set!")
+    app.test_client_class = FlaskLoginClient
+    yield app

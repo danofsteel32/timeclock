@@ -2,17 +2,41 @@
 {% block title %}Timeclock{% endblock %}
 
 {% block content %}
-<main>
+<main id="content">
   <h1>Timeclock</h1>
-  {% if current_user.is_authenticated %}
-    <p>View {{ current_user.username }}'s <a href="{{ url_for('timeclock.timesheet') }}">Timesheet</a></p>
+  <p>Currently logged in as {{ current_user.username }}. <a href="{{ url_for('timeclock.auth.logout') }}">Logout</a>
+  </p>
+  <p>View your current <a href="{{ url_for('timeclock.current_timesheet', user_id=current_user.id) }}">Timesheet</a></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Unpaid Hours</th>
+        <th>YTD Hours</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{ unpaid_hours }}</td>
+        <td>{{ ytd_hours }}</td>
+      </tr>
+    </tbody>
+  </table>
+  <div id="current_clock_state">
     {% if clocked_in %}
-      <p>Clocked in</p>
+      <p>Clocked in since: {{ workday.clock_in.format('H:mmA') }}</p>
+      <button hx-target="#current_clock_state" hx-swap="innerHTML" hx-post="{{ url_for('timeclock.clock_out') }}">CLOCK OUT</button>
     {% else %}
-      <p>Not clocked in</p>
+      <button hx-target="#current_clock_state" hx-swap="innerHTML" hx-put="{{ url_for('timeclock.clock_in') }}">CLOCK IN</button>
     {% endif %}
-  {% else %}
-    <a href="{{ url_for('timeclock.auth.login') }}">Login to access timeclock</a>
+  </div>
+  {% if clocked_in %}
+    {% include 'timeclock_forms.html' %}
+  {% endif %}
+  {% if workday.photos %}
+    <h3>Photos</h3>
+    {% for photo in workday.photos %}
+    <img id="photo_{{photo.id}}" src="{{ url_for('static', filename='uploads/'+photo.filepath.name) }}">
+    {% endfor %}
   {% endif %}
 </main>
 {% endblock %}

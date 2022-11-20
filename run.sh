@@ -83,11 +83,17 @@ lint() {
 }
 
 tests() {
-    TIMECLOCK_DB=test.db wrapped_python -m pytest -rA tests/
+    TIMECLOCK_TESTING=True TIMECLOCK_DB=test.db wrapped_python -m pytest -rA tests/
+}
+
+test_one() {
+    TIMECLOCK_TESTING=True TIMECLOCK_DB=test.db wrapped_python -m pytest -rA "${1}"
 }
 
 default() {
-    wrapped_python -m flask --app timeclock --debug run
+    rm -f timeclock.db &&
+    TIMECLOCK_DB=timeclock.db wrapped_python init_db.py &&
+    TIMECLOCK_DB=timeclock.db wrapped_python -m flask --app timeclock --debug run
 }
 
 TIMEFORMAT="Task completed in %3lR"

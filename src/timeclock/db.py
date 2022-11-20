@@ -1,4 +1,7 @@
-"""All database classes and functions."""
+"""All database classes and functions.
+
+Users can have a role.
+"""
 
 import sqlite3
 from contextlib import contextmanager
@@ -8,10 +11,17 @@ from typing import Callable, Generator, Tuple, Type, Union
 
 import pendulum
 
+# True/False instead of 1/0
+sqlite3.register_adapter(bool, int)
+sqlite3.register_converter("BOOLEAN", lambda v: bool(int(v)))
 # Store pendulum.DateTime as iso string when writing to database
 sqlite3.register_adapter(pendulum.DateTime, lambda val: val.isoformat(" "))
+sqlite3.register_adapter(pendulum.Date, lambda val: val.isoformat())
 # Convert iso string back to pendulum.DateTime when reading from database
 sqlite3.register_converter("TIMESTAMP", lambda s: pendulum.parse(s.decode()))
+
+sqlite3.register_adapter(Path, lambda v: str(v))
+sqlite3.register_converter("FILEPATH", lambda v: Path(v.decode()))
 
 
 SCHEMA = """
@@ -20,17 +30,57 @@ CREATE TABLE user (
     id INTEGER PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
     password_hash BLOB NOT NULL,
-    username TEXT
+    role TEXT NOT NULL DEFAULT 'EMPLOYEE',
+    username TEXT NOT NULL UNIQUE,
+    CHECK (role IN ('ADMIN', 'OWNER', 'EMPLOYEE'))
 );
 --sql
-CREATE TABLE timeclock (
-    punch_id INTEGER PRIMARY KEY,
-    user_id INTEGER,
+CREATE TABLE workday (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
     clock_in TIMESTAMP NOT NULL,
     clock_out TIMESTAMP,
     notes TEXT,
-    UNIQUE (punch_id, user_id),
+    UNIQUE (user_id, clock_in),
     FOREIGN KEY (user_id) REFERENCES user(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+--sql
+CREATE TABLE photo (
+    id INTEGER PRIMARY KEY,
+    filename TEXT NOT NULL UNIQUE
+);
+--sql
+CREATE TABLE workday_photo (
+    photo_id INTEGER,
+    workday_id INTEGER,
+    PRIMARY KEY (photo_id, workday_id),
+    FOREIGN KEY (photo_id) REFERENCES photo(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+    FOREIGN KEY (workday_id) REFERENCES workday(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+--sql
+CREATE TABLE timesheet (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    notes TEXT,
+    FOREIGN KEY (user_id) REFERENCES user(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+--sql
+CREATE TABLE timesheet_workday (
+    timesheet_id INTEGER,
+    workday_id INTEGER,
+    PRIMARY KEY (timesheet_id, workday_id),
+    FOREIGN KEY (timesheet_id) REFERENCES timesheet(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+    FOREIGN KEY (workday_id) REFERENCES workday(id)
         ON UPDATE CASCADE
         ON DELETE CASCADE
 );

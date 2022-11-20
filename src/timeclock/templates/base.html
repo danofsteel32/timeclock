@@ -7,6 +7,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/mvp.css') }}">
 <title>{% block title %}{% endblock %}</title>
+<style>
+  .embedded-form {
+    border: 0px;
+    box-shadow: none;
+    padding: 0rem;
+  }
+  .alert {
+    padding: 0.5rem;
+    background-color: #b8bb26;
+    color: black;
+  }
+  
+  .closebtn {
+    margin-left: 2rem;
+    margin-right: 2rem;
+    color: black;
+    font-weight: bold;
+    float: right;
+    font-size: 22px;
+    line-height: 20px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  
+  .closebtn:hover {
+    color: black;
+  }
+</style>
 {% endblock %}
 </head>
 
@@ -14,6 +42,8 @@
 <script src="{{ url_for('static', filename='js/htmx/htmx.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/htmx/ext/sse.js') }}"></script>
 <script src="{{ url_for('static', filename='js/htmx/ext/json-enc.js') }}"></script>
+<div id="message" class="alert" style="display:none;">
+</div>
 {% block content %}{% endblock %}
 
 <footer>

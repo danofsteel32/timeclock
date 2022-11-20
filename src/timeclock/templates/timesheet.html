@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Timesheet{% endblock %}
+
+{% block content %}
+<main id="content">
+  <h1>Timesheet</h1>
+  <ul>
+    <li>Start Date: {{ timesheet.start_date }}</li>
+    <li>End Date: {{ timesheet.end_date }}</li>
+    <li>Hours: {{ timesheet.hours }}</li>
+    <li>Notes: {{ timesheet.notes }}</li>
+  </ul>
+</main>
+{% endblock %} 
