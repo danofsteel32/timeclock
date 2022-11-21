@@ -26,10 +26,17 @@ class Photo:
     id: int
     filename: str
 
-    @property
-    def filepath(self) -> Path:
-        """Full file path."""
-        return Path(self.filename)
+    @classmethod
+    def new(cls, filename: Path) -> Photo:
+        with db_conn(DB_FILE) as conn:
+            with transaction(conn):
+                cursor = conn.execute(
+                    """--sql
+                    INSERT INTO photo (filename) VALUES (:filename) RETURNING id;""",
+                    dict(filename=filename.name)
+                )
+                id = cursor.fetchone()[0]
+        return cls(id, filename.name)
 
 
 def get_photos(workday_id: int) -> List[Photo]:
@@ -206,6 +213,29 @@ class WorkDay:
                 )
         self.notes = notes
 
+    def add_photo(self, filename: Path) -> Photo:
+        """New photo for the workday.
+
+        Raises:
+            sqlite3.IntegrityError: If photo already uploaded.
+        """
+        photo = Photo.new(filename)
+        try:
+            self.photos.append(photo)  # type: ignore
+        except AttributeError:
+            self.photos = [photo]
+
+        with db_conn(DB_FILE) as conn:
+            with transaction(conn):
+                conn.execute(
+                    """--sql
+                    INSERT INTO workday_photo (photo_id, workday_id)
+                    VALUES (:p_id, :wd_id);""",
+                    dict(p_id=photo.id, wd_id=self.id)
+                )
+
+        return photo
+
     def update(self) -> None:
         """Do an update transaction in the database."""
         with db_conn(DB_FILE) as conn:
@@ -224,7 +254,6 @@ class WorkDay:
                         notes=self.notes,
                     ),
                 )
-                # TODO photos
 
     def _insert(self, user: User) -> None:
         with db_conn(DB_FILE) as conn:
@@ -242,7 +271,6 @@ class WorkDay:
                     ),
                 )
                 self.id = cursor.fetchone()[0]
-                # TODO photos
 
 
 def _manual_delete_workday(workday_id: int) -> None:

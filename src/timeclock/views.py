@@ -1,10 +1,23 @@
 """View functions."""
+import sqlite3
+from pathlib import Path
 from typing import Tuple
 
 import pendulum
-from flask import abort, make_response, redirect, render_template, request, url_for
+from flask import (
+    abort,
+    current_app,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 from flask_login import current_user, login_required, login_user, logout_user
+from PIL import Image, UnidentifiedImageError
 from werkzeug import Response
+from werkzeug.utils import secure_filename
 
 from . import timeclock
 from .timesheet import TimeSheet, get_overview, get_past_timesheets
@@ -253,9 +266,46 @@ def save_timesheet() -> Response:
 
 
 @login_required
-def upload_photo() -> Response:
+def upload_photo(id: int) -> Response:
     """TODO."""
-    abort(400)
+    wd = WorkDay.from_id(id)
+    # check that user has permission to edit
+    if wd.user_id != current_user.user_id and current_user.role != Role.OWNER:
+        abort(403)
+    # check that id is not in timesheet_workday (archived)
+    if wd.archived:
+        abort(403)
+    msg = None
+    uploaded_file = request.files["photo"]
+    print(uploaded_file)
+    if uploaded_file.filename:
+        filename = Path(secure_filename(uploaded_file.filename))
+        if filename.suffix not in current_app.config["UPLOAD_EXTENSIONS"]:
+            msg = "Error: Files of type {file_ext} are not allowed"
+        try:
+            image = Image.open(uploaded_file.stream, formats=["JPEG", "PNG"])
+        except UnidentifiedImageError:
+            msg = "Error: The file is not an image"
+
+        image.reduce(4).save(current_app.config["UPLOAD_PATH"] / filename)
+        try:
+            wd.add_photo(filename)
+        except sqlite3.IntegrityError:
+            msg = "Error: That image has already been uploaded."
+    else:
+        msg = "Error: No file part"
+
+    if msg:
+        return make_response(
+            render_template("alert.html", msg=msg, style_class="error")
+        )
+
+    return make_response(render_template("photos.html", photos=wd.photos))
+
+
+@login_required
+def photo(filename: str) -> Response:
+    return send_file(current_app.config["UPLOAD_PATH"] / filename)
 
 
 @login_required

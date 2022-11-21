@@ -10,11 +10,11 @@
     </form>
     <form
       class="embedded-form"
-      hx-ext="json-enc"
       hx-swap="none"
-      hx-put="{{ url_for('timeclock.workday.upload_photo', id=workday.id) }}">
+      hx-put="{{ url_for('timeclock.workday.upload_photo', id=workday.id) }}"
+      enctype="multipart/form-data">
       <label for="photo">Photo Upload</label>
-      <input type="file" id="photo", name="photo" accept="image/png image/jpeg">
+      <input type="file" id="photo", name="photo" accept="image/png image/jpeg" multiple>
       <input type="submit" value="Upload Photo">
     </form>
   </div>

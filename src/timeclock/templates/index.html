@@ -33,10 +33,11 @@
     {% include 'timeclock_forms.html' %}
   {% endif %}
   {% if workday.photos %}
-    <h3>Photos</h3>
-    {% for photo in workday.photos %}
-    <img id="photo_{{photo.id}}" src="{{ url_for('static', filename='uploads/'+photo.filepath.name) }}">
-    {% endfor %}
+    {% with photos = workday.photos %}
+    {% include 'photos.html' %}
+    {% endwith %}
+  {% else %}
+  <div id="photos" style="display:none;"></div>
   {% endif %}
 </main>
 {% endblock %}

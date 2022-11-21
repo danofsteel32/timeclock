@@ -91,13 +91,38 @@ test_one() {
 }
 
 line_count() {
-    cloc --exclude-lang=JavaScript .
+    clean &&
+    cloc --exclude-lang=JavaScript --exclude-dir=venv .
+}
+
+collectstatic() {
+    rm -rf ./www && mkdir www
+    rsync -azP src/timeclock/static www
+}
+
+initdb() {
+    TIMECLOCK_DB=timeclock.db wrapped_python init_db.py
+}
+
+devserver() {
+    rm -f timeclock.db &&
+    initdb &&
+    TIMECLOCK_DB=timeclock.db \
+        wrapped_python -m flask --app timeclock --debug run -h 0.0.0.0 -p 5000
+}
+
+prodserver() {
+    TIMECLOCK_DB=timeclock.db \
+        TIMECLOCK_UPLOAD_PATH="www/static/uploads" \
+        TIMECLOCK_SECRET_KEY="$(head -c 64 /dev/urandom | base64)" \
+        "${VENVPATH}"/bin/uwsgi --http-socket 127.0.0.1:5000 --master -p 2 -w wsgi:app
 }
 
 default() {
+    collectstatic &&
     rm -f timeclock.db &&
-    TIMECLOCK_DB=timeclock.db wrapped_python init_db.py &&
-    TIMECLOCK_DB=timeclock.db wrapped_python -m flask --app timeclock --debug run
+    initdb &&
+    (trap 'kill 0' SIGINT; caddy run --config Caddyfile.dev & prodserver)
 }
 
 TIMEFORMAT="Task completed in %3lR"

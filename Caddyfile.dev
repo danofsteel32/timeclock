@@ -1,0 +1,6 @@
+localhost {
+    root * www
+    reverse_proxy /timeclock/* localhost:5000
+    encode gzip
+    file_server
+}

@@ -1,0 +1,29 @@
+.embedded-form {
+  border: 0px;
+  box-shadow: none;
+  padding: 0rem;
+}
+.alert {
+  padding: 0.5rem;
+  background-color: #26bb46;
+  color: black;
+}
+.error {
+  padding: 0.5rem;
+  background-color: #bb2626;
+  color: black;
+}
+.closebtn {
+  margin-left: 2rem;
+  margin-right: 2rem;
+  color: black;
+  font-weight: bold;
+  float: right;
+  font-size: 22px;
+  line-height: 20px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.closebtn:hover {
+  color: black;
+}

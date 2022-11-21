@@ -21,7 +21,9 @@ dependencies = [
     "bcrypt",
     "flask",
     "flask-login",
-    "pendulum"
+    "pendulum",
+    "pillow",
+    "uwsgi",
 ]
 requires-python = ">=3.10"
 

@@ -6,53 +6,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/mvp.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 <title>{% block title %}{% endblock %}</title>
-<style>
-  .embedded-form {
-    border: 0px;
-    box-shadow: none;
-    padding: 0rem;
-  }
-  .alert {
-    padding: 0.5rem;
-    background-color: #26bb46;
-    color: black;
-  }
-  .error {
-    padding: 0.5rem;
-    background-color: #bb2626;
-    color: black;
-  }
-  .closebtn {
-    margin-left: 2rem;
-    margin-right: 2rem;
-    color: black;
-    font-weight: bold;
-    float: right;
-    font-size: 22px;
-    line-height: 20px;
-    cursor: pointer;
-    transition: 0.3s;
-  }
-  
-  .closebtn:hover {
-    color: black;
-  }
-</style>
 {% endblock %}
 </head>
-
 <body>
 <script src="{{ url_for('static', filename='js/htmx/htmx.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/htmx/ext/sse.js') }}"></script>
 <script src="{{ url_for('static', filename='js/htmx/ext/json-enc.js') }}"></script>
 <div id="message" class="alert" style="display:none;">
 </div>
 {% block content %}{% endblock %}
-
 <footer>
   &copy; Copyright 2022 by <a href="https://dandavis.dev">Dan Davis</a>.
 </footer>
 </body>
-
 </html>

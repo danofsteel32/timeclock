@@ -33,13 +33,21 @@ def create_app() -> Flask:
     if not db_file.exists() and not app.config["TESTING"]:
         create_db(db_file)
 
+    # Photo upload config
+    DEFAULT_UPLOAD_PATH = "src/timeclock/static/uploads"
+    UPLOAD_PATH = Path(os.getenv("TIMECLOCK_UPLOAD_PATH", DEFAULT_UPLOAD_PATH))
+    app.config["UPLOAD_PATH"] = UPLOAD_PATH
+    app.config["UPLOAD_EXTENSIONS"] = [".jpg", ".jpeg", ".png"]
+    app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024  # 4MB
+
     # Blueprints
+    URL_PREFIX = os.getenv("TIMECLOCK_URL_PREFIX", "/timeclock")
     timeclock = Blueprint(
         "timeclock",
         __name__,
         template_folder="templates",
         static_folder="static",
-        url_prefix="/timeclock",
+        url_prefix=URL_PREFIX,
     )
     workday = Blueprint(
         "workday",
@@ -87,6 +95,9 @@ def create_app() -> Flask:
     )
     timeclock.add_url_rule(
         "/timesheet/overview", view_func=views.overview, methods=["GET"]
+    )
+    timeclock.add_url_rule(
+        "/photo/<string:filename>", view_func=views.photo, methods=["GET"]
     )
 
     workday.add_url_rule("/<int:id>", view_func=views.get_workday, methods=["GET"])
