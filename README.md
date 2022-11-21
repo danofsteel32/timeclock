@@ -1,13 +1,16 @@
 # timeclock
 
-Simple webpage for clock in/out and viewing timesheet.
+Simple timeclock webapp
 
-- http basic auth (password in header)
-- add notes to a day
-- add pictures to a day
-
+### Features
+- Timesheets
+- Basic RBAC (owner and employee) means employee's can't sign off on their own timesheets.
+- Save notes during your workday
+- Upload photos taken during your workday
 
 ### TODO
-- database behavior on server start
-- photo uploads (where to put them? how to fetch them?)
-- get a production config working with Caddy
+- More tests
+- User signup page? (And user management)
+- cli for user management
+- search notes
+- more user roles
