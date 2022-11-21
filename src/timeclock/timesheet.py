@@ -22,16 +22,20 @@ class TimeSheet:
 
     Attributes:
         work_days (List[WorkDay]): All work days on this timesheet.
+        id (int): Primary key on the timesheet table. Defaults to 0 because only
+            archived timesheets will have a primary key.
+        notes (str): Any notes left by an OWNER role when saving the timesheet.
     """
 
     def __init__(self, work_days: List[WorkDay], id: int = 0, notes: str = "") -> None:
-        """Inits TimeSheet for the user."""
+        """Init TimeSheet."""
         self.work_days = work_days
         self.id = id
         self.notes = notes
 
     @classmethod
     def from_id(cls, id: int) -> TimeSheet:
+        """Load a saved (archived) timesheet."""
         work_days = []
         with db_conn(DB_FILE) as conn:
             cursor = conn.execute(
@@ -77,6 +81,7 @@ class TimeSheet:
         return cls(work_days)
 
     def save(self, user: User, notes: str, workday_ids: Set[int]) -> None:
+        """OWNER role can archive (save) a timesheet."""
         with db_conn(DB_FILE) as conn:
             with transaction(conn):
                 cursor = conn.execute(
@@ -97,10 +102,12 @@ class TimeSheet:
 
     @property
     def start_id(self) -> int:
+        """WorkDay.id of the first WorkDay (earliest date) of the TimeSheet."""
         return self.work_days[0].id
 
     @property
     def end_id(self) -> int:
+        """WorkDay.id of the last WorkDay (latest date) of the TimeSheet."""
         return self.work_days[-1].id
 
     @property
@@ -138,6 +145,7 @@ class TimeSheet:
 
 
 def get_overview() -> List[Dict]:
+    """OWNER role can view a summary/overview of all EMPLOYEE timesheets."""
     overview = []
     with db_conn(DB_FILE, class_row(User)) as conn:
         cursor = conn.execute(
@@ -160,6 +168,7 @@ def get_overview() -> List[Dict]:
 
 
 def get_past_timesheets(user: User) -> List[TimeSheet]:
+    """Return every archived timesheet for the user."""
     past_timesheets = []
     with db_conn(DB_FILE) as conn:
         cursor = conn.execute(

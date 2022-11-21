@@ -1,7 +1,4 @@
-"""All database classes and functions.
-
-Users can have a role.
-"""
+"""All database classes and functions."""
 
 import sqlite3
 from contextlib import contextmanager
@@ -19,9 +16,6 @@ sqlite3.register_adapter(pendulum.DateTime, lambda val: val.isoformat(" "))
 sqlite3.register_adapter(pendulum.Date, lambda val: val.isoformat())
 # Convert iso string back to pendulum.DateTime when reading from database
 sqlite3.register_converter("TIMESTAMP", lambda s: pendulum.parse(s.decode()))
-
-sqlite3.register_adapter(Path, lambda v: str(v))
-sqlite3.register_converter("FILEPATH", lambda v: Path(v.decode()))
 
 
 SCHEMA = """

@@ -10,9 +10,6 @@ from .db import db_conn, transaction
 from .users import User
 from .workday import WorkDay
 
-# from typing import Dict, List, Optional, Tuple
-
-
 DB_FILE = Path(os.getenv("TIMECLOCK_DB", "test.db"))
 
 

@@ -8,7 +8,7 @@ from typing import List, Optional
 
 import pendulum
 
-from .db import db_conn, transaction
+from .db import class_row, db_conn, transaction
 from .users import User
 
 DB_FILE = Path(os.getenv("TIMECLOCK_DB", "test.db"))
@@ -32,14 +32,35 @@ class Photo:
         return Path(self.filename)
 
 
+def get_photos(workday_id: int) -> List[Photo]:
+    """Return all photos for a given workday."""
+    with db_conn(DB_FILE, class_row(Photo)) as conn:
+        cursor = conn.execute(
+            """--sql
+            SELECT p.id, p.filename
+            FROM photo p
+            JOIN workday_photo wp
+            ON p.id = wp.photo_id
+            WHERE wp.workday_id = :id;""",
+            dict(id=workday_id),
+        )
+        photos = cursor.fetchall()
+    return photos
+
+
 class WorkDay:
     """Represents a single day of work.
 
     Attributes:
         clock_in (pendulum.DateTime): Time user clocked in.
-        clock_out (Optional[pendulum.DateTime]): Time user clocked out.
+        clock_out (Optional[pendulum.DateTime]): Time user clocked out. Defaults
+            to None because there might not be a clock_out time.
         notes: (Optional[str]): Optional notes a user can leave for the work day.
-        id (Optional[int]): Primary key on the workday table.
+        id (int): Primary key on the workday table. Defaults to 0 if not created
+            by one of the constructors (current(), from_id()). This means that
+            there is no primary key yet.
+        photos: (Optional[List[Photo]]): List of photos associated with the
+            the workday. Default is None.
     """
 
     def __init__(
@@ -50,6 +71,7 @@ class WorkDay:
         id: int = 0,
         photos: Optional[List[Photo]] = None,
     ):
+        """Init WorkDay."""
         self.clock_in = clock_in
         self.clock_out = clock_out
         self.notes = notes
@@ -58,6 +80,11 @@ class WorkDay:
 
     @classmethod
     def current(cls, user: User) -> WorkDay:
+        """Return the current workday for the user.
+
+        Notes:
+            - Does no checking for whether user is clocked in.
+        """
         with db_conn(DB_FILE) as conn:
             cursor = conn.execute(
                 """--sql
@@ -68,25 +95,15 @@ class WorkDay:
                 dict(user_id=user.user_id),
             )
             id, clock_in, clock_out, notes = cursor.fetchone()
-            cursor.execute(
-                """--sql
-                SELECT p.id, p.filename
-                FROM photo p
-                JOIN workday_photo wp
-                ON p.id = wp.photo_id
-                WHERE wp.workday_id = :id;""",
-                dict(id=id),
-            )
-            photo_rows = cursor.fetchall()
-        photos = []
-        for photo_id, filename in photo_rows:
-            photos.append(Photo(photo_id, filename))
+        photos = get_photos(workday_id=id)
+        notes = notes if notes else ""
         return cls(
             clock_in=clock_in, clock_out=clock_out, notes=notes, id=id, photos=photos
         )
 
     @classmethod
     def from_id(cls, id: int) -> WorkDay:
+        """Return the workday with the given id."""
         with db_conn(DB_FILE) as conn:
             cursor = conn.execute(
                 """--sql
@@ -96,34 +113,24 @@ class WorkDay:
                 dict(id=id),
             )
             clock_in, clock_out, notes = cursor.fetchone()
-            cursor.execute(
-                """--sql
-                SELECT p.id, p.filename
-                FROM photo p
-                JOIN workday_photo wp
-                ON p.id = wp.photo_id
-                WHERE wp.workday_id = :id;""",
-                dict(id=id),
-            )
-            photo_rows = cursor.fetchall()
-        photos = []
-        for photo_id, filename in photo_rows:
-            photos.append(Photo(photo_id, filename))
+        photos = get_photos(workday_id=id)
+        notes = notes if notes else ""
         return cls(
             clock_in=clock_in, clock_out=clock_out, notes=notes, id=id, photos=photos
         )
 
     @property
     def user_id(self) -> int:
+        """Return the user_id associated with the workday."""
         if not self.id:
-            raise Exception("can't get user if no id.")
+            raise Exception("WorkDay has no id.")
         with db_conn(DB_FILE) as conn:
             cursor = conn.execute(
                 """--sql
                 SELECT user_id
                 FROM workday
                 WHERE id = :id;""",
-                dict(id=self.id),
+                dict(id=self.id)
             )
             return cursor.fetchone()[0]
 
@@ -152,6 +159,7 @@ class WorkDay:
 
     @property
     def archived(self) -> bool:
+        """Returns whether or not the workday is able to be edited."""
         with db_conn(DB_FILE) as conn:
             cursor = conn.execute(
                 """--sql
@@ -165,7 +173,7 @@ class WorkDay:
         return exists
 
     def __repr__(self) -> str:
-        """Print all attributes of the WorkDay instance."""
+        """Print attributes/properties of the WorkDay instance."""
         return (
             f"WorkDay(id={self.id} clock_in={self.clock_in}, "
             f"clock_out={self.clock_out}, notes={self.notes})"
@@ -183,6 +191,11 @@ class WorkDay:
             return f"{date} {ci}"
 
     def update_notes(self, notes: str) -> None:
+        """Set the workday's notes to a new value and save to database.
+
+        Notes:
+            - Ideally get rid of this function and use the more general update()
+        """
         with db_conn(DB_FILE) as conn:
             with transaction(conn):
                 conn.execute(
@@ -194,6 +207,7 @@ class WorkDay:
         self.notes = notes
 
     def update(self) -> None:
+        """Do an update transaction in the database."""
         with db_conn(DB_FILE) as conn:
             with transaction(conn):
                 conn.execute(
@@ -210,6 +224,7 @@ class WorkDay:
                         notes=self.notes,
                     ),
                 )
+                # TODO photos
 
     def _insert(self, user: User) -> None:
         with db_conn(DB_FILE) as conn:

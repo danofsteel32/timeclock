@@ -90,6 +90,10 @@ test_one() {
     TIMECLOCK_TESTING=True TIMECLOCK_DB=test.db wrapped_python -m pytest -rA "${1}"
 }
 
+line_count() {
+    cloc --exclude-lang=JavaScript .
+}
+
 default() {
     rm -f timeclock.db &&
     TIMECLOCK_DB=timeclock.db wrapped_python init_db.py &&

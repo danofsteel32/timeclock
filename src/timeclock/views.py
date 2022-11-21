@@ -51,7 +51,10 @@ def clock_in() -> PartialResponse:
     """Clock the current_user in if not already clocked in.
 
     Notes:
-        - Creates a new WorkDay
+        - Creates a new row in the workday table.
+
+    Returns:
+        HTML fragment containing notes/photo forms, clock out button, 201 CREATED
     """
     try:
         workday = timeclock.clock_in(current_user)
@@ -62,7 +65,11 @@ def clock_in() -> PartialResponse:
 
 @login_required
 def clock_out() -> PartialResponse:
-    """Clock the current_user out if clocked in."""
+    """Clock the current_user out if clocked in.
+
+    Returns:
+        HTML fragment with clock in button, 200 OK
+    """
     try:
         timeclock.clock_out(current_user)
     except timeclock.NotClockedInError:
@@ -81,9 +88,13 @@ def clock_out() -> PartialResponse:
 
 @login_required
 def current_timesheet() -> Response:
-    """Show the current timesheet for the user."""
+    """Show the current timesheet for the user.
+
+    Notes:
+        - If OWNER show form for saving timesheet.
+    """
     try:
-        user_id = request.args.get("user_id")
+        user_id = request.args["user_id"]
         user = User.get(user_id)
     except (KeyError, ValueError):
         abort(400)
@@ -111,14 +122,15 @@ def current_timesheet() -> Response:
 
 @login_required
 def timesheet(id: int) -> Response:
-    """Show detailed timesheet info."""
+    """Show an archived timesheet."""
     ts = TimeSheet.from_id(id)
-    # check current_user has permission to view
+    # FIXME check current_user has permission to view
     return make_response(render_template("timesheet.html", timesheet=ts))
 
 
 @login_required
 def overview() -> Response:
+    """Show the OWNER an overview of EMPLOYEE timesheets."""
     if current_user.role != Role.OWNER:
         abort(403)
     employees = get_overview()
@@ -127,6 +139,7 @@ def overview() -> Response:
 
 @login_required
 def get_workday(id: int) -> Response:
+    """Show either an editable view of the workday or archived view."""
     wd = WorkDay.from_id(id)
     # check that user has permission to edit
     if wd.user_id != current_user.user_id and current_user.role != Role.OWNER:
@@ -146,15 +159,16 @@ def update_workday(id: int) -> PartialResponse:
     # check that id is not in timesheet_workday (archived)
     if wd.archived:
         abort(403)
-
-    print(request.json)
+    if not request.json:
+        abort(400)
 
     def parse_time(key: str) -> pendulum.DateTime:
         """Go from 08:00AM -> a datetime."""
-        posted = pendulum.parse(request.json.get(key))
-        original = wd.__getattribute__(key)
+        timestamp = request.json.get(key)  # type: ignore
+        p = pendulum.parse(timestamp)
+        og = wd.__getattribute__(key)
         return pendulum.local(
-            original.year, original.month, original.day, posted.hour, posted.minute
+            og.year, og.month, og.day, p.hour, p.minute  # type: ignore
         )
 
     clock_in, clock_out = parse_time("clock_in"), parse_time("clock_out")
@@ -165,13 +179,16 @@ def update_workday(id: int) -> PartialResponse:
         notes=request.json["notes"],
     )
     new_wd.update()
-    return render_template("alert.html", msg="Success"), 200
+    return render_template("alert.html", msg="Success", style_class="alert"), 200
 
 
 @login_required
 def select_workday() -> PartialResponse:
+    """Checkbox on the workday when viewing current timestamp."""
     if current_user.role != Role.OWNER:
         abort(403)
+    if not request.json:
+        abort(400)
     user_id = request.json.get("user_id")
     timesheet = TimeSheet.current(User.get(user_id))
 
@@ -195,18 +212,25 @@ def select_workday() -> PartialResponse:
 
 @login_required
 def workday_notes(id: int) -> PartialResponse:
+    """Update the current workday's notes."""
     wd = WorkDay.from_id(id)
+    if not request.json:
+        abort(400)
     wd.update_notes(request.json["notes"])
-    return render_template("alert.html", msg="Success"), 200
+    return render_template("alert.html", msg="Success", style_class="alert"), 200
 
 
 @login_required
 def save_timesheet() -> Response:
+    """Create a new row in the timesheet table."""
     if current_user.role != Role.OWNER:
         abort(403)
+    if not request.json:
+        abort(400)
+
     user_id = request.json.get("user_id")
+    notes = request.json.get("notes", "")
     user = User.get(user_id)
-    notes = request.json.get("notes")
     timesheet = TimeSheet.current(user)
 
     workday_ids = set()
@@ -215,6 +239,11 @@ def save_timesheet() -> Response:
             workday_ids.add(int(key))
         except (TypeError, ValueError):
             continue
+    if len(workday_ids) == 0:
+        msg = "Error: A least one date must be selected before saving."
+        return make_response(
+            render_template("alert.html", msg=msg, style_class="error")
+        )
 
     timesheet.save(user, notes, workday_ids)
     resp = make_response("")
@@ -225,11 +254,13 @@ def save_timesheet() -> Response:
 
 @login_required
 def upload_photo() -> Response:
+    """TODO."""
     abort(400)
 
 
 @login_required
 def delete_photo() -> Response:
+    """TODO."""
     abort(400)
 
 
@@ -237,22 +268,21 @@ def login() -> Response:
     """Log the user in."""
     if request.method == "GET":
         return make_response(render_template("login.html"))
-
     if not request.form:
         abort(400)
-    email = request.form.get("email", None)
-    unhashed_password = request.form.get("unhashed_password", None)
-    if not email and unhashed_password:
+
+    email = request.form.get("email")
+    unhashed_password = request.form.get("unhashed_password")
+    if not email or not unhashed_password:
         abort(400)
+
     try:
         user = verify_user(email, unhashed_password)
     except ValueError:
         abort(401)
+
     login_user(user)
-    resp = redirect(url_for("timeclock.index"))
-    resp.headers["HX-Redirect"] = url_for("timeclock.index")
-    resp.headers["HX-Refresh"] = "true"
-    return resp
+    return redirect(url_for("timeclock.index"))
 
 
 @login_required

@@ -1,6 +1,6 @@
-  <p>Clocked in since: {{ workday.clock_in.format('H:mmA') }}</p>
-  <button
-    hx-swap="innerHTML"
-    hx-target="#current_clock_state"
-    hx-post="{{ url_for('timeclock.clock_out') }}">CLOCK OUT</button>
+<p>Clocked in since: {{ workday.clock_in.format('H:mmA') }}</p>
+<button
+  hx-swap="innerHTML"
+  hx-target="#current_clock_state"
+  hx-post="{{ url_for('timeclock.clock_out') }}">CLOCK OUT</button>
 {% include 'timeclock_forms.html' %}
