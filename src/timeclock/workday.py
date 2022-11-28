@@ -4,14 +4,15 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import pendulum
 
-from .db import class_row, db_conn, transaction
+from .db import class_row, db_conn, get_queries, transaction
 from .users import User
 
 DB_FILE = Path(os.getenv("TIMECLOCK_DB", "test.db"))
+Q = get_queries()
 
 
 @dataclass
@@ -27,31 +28,25 @@ class Photo:
     filename: str
 
     @classmethod
-    def new(cls, filename: Path) -> Photo:
+    def new(cls, filename: Union[str, Path]) -> Photo:
+        filename = Path(filename)
         with db_conn(DB_FILE) as conn:
             with transaction(conn):
-                cursor = conn.execute(
-                    """--sql
-                    INSERT INTO photo (filename) VALUES (:filename) RETURNING id;""",
-                    dict(filename=filename.name)
-                )
-                id = cursor.fetchone()[0]
-        return cls(id, filename.name)
+                photo_id = Q.insert_photo(conn, filename=filename.name)
+        return cls(photo_id, filename.name)
+
+    def delete(self) -> bool:
+        with db_conn(DB_FILE) as conn:
+            with transaction(conn):
+                Q.delete_photo(conn, photo_id=self.id)
+            ret = bool(conn.total_changes)
+        return ret
 
 
 def get_photos(workday_id: int) -> List[Photo]:
     """Return all photos for a given workday."""
     with db_conn(DB_FILE, class_row(Photo)) as conn:
-        cursor = conn.execute(
-            """--sql
-            SELECT p.id, p.filename
-            FROM photo p
-            JOIN workday_photo wp
-            ON p.id = wp.photo_id
-            WHERE wp.workday_id = :id;""",
-            dict(id=workday_id),
-        )
-        photos = cursor.fetchall()
+        photos = Q.get_workday_photos(conn, workday_id=workday_id)
     return photos
 
 
@@ -93,15 +88,10 @@ class WorkDay:
             - Does no checking for whether user is clocked in.
         """
         with db_conn(DB_FILE) as conn:
-            cursor = conn.execute(
-                """--sql
-                SELECT id, clock_in, clock_out, notes
-                FROM workday
-                WHERE user_id = :user_id
-                ORDER BY clock_in DESC LIMIT 1;""",
-                dict(user_id=user.user_id),
+            id, clock_in, clock_out, notes = Q.get_user_current_workday(
+                conn, user_id=user.user_id
             )
-            id, clock_in, clock_out, notes = cursor.fetchone()
+        # if clock_out: raise what?
         photos = get_photos(workday_id=id)
         notes = notes if notes else ""
         return cls(
@@ -112,14 +102,7 @@ class WorkDay:
     def from_id(cls, id: int) -> WorkDay:
         """Return the workday with the given id."""
         with db_conn(DB_FILE) as conn:
-            cursor = conn.execute(
-                """--sql
-                SELECT clock_in, clock_out, notes
-                FROM workday
-                WHERE id = :id;""",
-                dict(id=id),
-            )
-            clock_in, clock_out, notes = cursor.fetchone()
+            clock_in, clock_out, notes = Q.get_workday(conn, workday_id=id)
         photos = get_photos(workday_id=id)
         notes = notes if notes else ""
         return cls(
@@ -132,14 +115,8 @@ class WorkDay:
         if not self.id:
             raise Exception("WorkDay has no id.")
         with db_conn(DB_FILE) as conn:
-            cursor = conn.execute(
-                """--sql
-                SELECT user_id
-                FROM workday
-                WHERE id = :id;""",
-                dict(id=self.id)
-            )
-            return cursor.fetchone()[0]
+            _user_id = Q.get_workday_user_id(conn, workday_id=self.id)
+        return _user_id
 
     @property
     def date(self) -> pendulum.Date:
@@ -168,16 +145,8 @@ class WorkDay:
     def archived(self) -> bool:
         """Returns whether or not the workday is able to be edited."""
         with db_conn(DB_FILE) as conn:
-            cursor = conn.execute(
-                """--sql
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM timesheet_workday
-                    WHERE workday_id = :id);""",
-                dict(id=self.id),
-            )
-            exists = cursor.fetchone()[0]
-        return exists
+            exists = Q.get_workday_archived(conn, workday_id=self.id)
+        return bool(exists)
 
     def __repr__(self) -> str:
         """Print attributes/properties of the WorkDay instance."""
@@ -213,7 +182,7 @@ class WorkDay:
                 )
         self.notes = notes
 
-    def add_photo(self, filename: Path) -> Photo:
+    def add_photo(self, filename: Union[str, Path]) -> Photo:
         """New photo for the workday.
 
         Raises:
@@ -227,12 +196,7 @@ class WorkDay:
 
         with db_conn(DB_FILE) as conn:
             with transaction(conn):
-                conn.execute(
-                    """--sql
-                    INSERT INTO workday_photo (photo_id, workday_id)
-                    VALUES (:p_id, :wd_id);""",
-                    dict(p_id=photo.id, wd_id=self.id)
-                )
+                Q.insert_workday_photo(conn, photo_id=photo.id, workday_id=self.id)
 
         return photo
 
@@ -240,19 +204,12 @@ class WorkDay:
         """Do an update transaction in the database."""
         with db_conn(DB_FILE) as conn:
             with transaction(conn):
-                conn.execute(
-                    """--sql
-                    UPDATE workday SET
-                        clock_in = :clock_in,
-                        clock_out = :clock_out,
-                        notes = :notes
-                    WHERE id = :id;""",
-                    dict(
-                        id=self.id,
-                        clock_in=self.clock_in,
-                        clock_out=self.clock_out,
-                        notes=self.notes,
-                    ),
+                Q.update_workday(
+                    conn,
+                    workday_id=self.id,
+                    clock_in=self.clock_in,
+                    clock_out=self.clock_out,
+                    notes=self.notes
                 )
 
     def _insert(self, user: User) -> None:

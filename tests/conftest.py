@@ -70,6 +70,12 @@ def fake_timesheet_db(employee_user, fake_timesheet):
         wd._insert(employee_user)
 
 
+@pytest.fixture(scope="session")
+def saved_timesheet(employee_user, fake_timesheet, fake_timesheet_db):
+    workday_ids = {wd.id for wd in fake_timesheet.work_days}
+    fake_timesheet.save(user=employee_user, notes="test", workday_ids=workday_ids)
+
+
 @pytest.fixture
 def app(DB):
     app = create_app()

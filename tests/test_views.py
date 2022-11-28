@@ -19,9 +19,10 @@ def test_index_employee_clocked_in(app, employee_user, employee_workday):
     with app.test_client(user=employee_user) as client:
         resp = client.get("/timeclock")
     assert resp.status_code == 200
+    print(resp.text)
     assert 'hx-post="/timeclock/clock_out">CLOCK OUT</button>' in resp.text
-    assert f'hx-post="/timeclock/workday/{employee_workday.id}/notes">' in resp.text
-    assert f'hx-put="/timeclock/workday/{employee_workday.id}/photo">' in resp.text
+    assert f'hx-post="/timeclock/workday/{employee_workday.id}/notes"' in resp.text
+    assert f'hx-put="/timeclock/workday/{employee_workday.id}/photo"' in resp.text
 
 
 def test_clock_in(app, employee_user):
@@ -44,7 +45,6 @@ def test_current_timesheet_employee_view(app, employee_user):
             "/timeclock/timesheet", query_string={"user_id": employee_user.id}
         )
     assert resp.status_code == 200
-    print(resp.text)
 
 
 # def test_index_owner_view(app, owner_user, fake_timesheet_db):

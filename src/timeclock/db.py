@@ -1,11 +1,12 @@
 """All database classes and functions."""
-
+import importlib.resources as imp
 import sqlite3
 from contextlib import contextmanager
-from functools import lru_cache
+from functools import cache, lru_cache
 from pathlib import Path
-from typing import Callable, Generator, Tuple, Type, Union
+from typing import Any, Callable, Generator, Tuple, Type, Union
 
+import aiosql
 import pendulum
 
 # True/False instead of 1/0
@@ -18,67 +19,14 @@ sqlite3.register_adapter(pendulum.Date, lambda val: val.isoformat())
 sqlite3.register_converter("TIMESTAMP", lambda s: pendulum.parse(s.decode()))
 
 
-SCHEMA = """
---sql
-CREATE TABLE user (
-    id INTEGER PRIMARY KEY,
-    email TEXT NOT NULL UNIQUE,
-    password_hash BLOB NOT NULL,
-    role TEXT NOT NULL DEFAULT 'EMPLOYEE',
-    username TEXT NOT NULL UNIQUE,
-    CHECK (role IN ('ADMIN', 'OWNER', 'EMPLOYEE'))
-);
---sql
-CREATE TABLE workday (
-    id INTEGER PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    clock_in TIMESTAMP NOT NULL,
-    clock_out TIMESTAMP,
-    notes TEXT,
-    UNIQUE (user_id, clock_in),
-    FOREIGN KEY (user_id) REFERENCES user(id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
-);
---sql
-CREATE TABLE photo (
-    id INTEGER PRIMARY KEY,
-    filename TEXT NOT NULL UNIQUE
-);
---sql
-CREATE TABLE workday_photo (
-    photo_id INTEGER,
-    workday_id INTEGER,
-    PRIMARY KEY (photo_id, workday_id),
-    FOREIGN KEY (photo_id) REFERENCES photo(id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
-    FOREIGN KEY (workday_id) REFERENCES workday(id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
-);
---sql
-CREATE TABLE timesheet (
-    id INTEGER PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    notes TEXT,
-    FOREIGN KEY (user_id) REFERENCES user(id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
-);
---sql
-CREATE TABLE timesheet_workday (
-    timesheet_id INTEGER,
-    workday_id INTEGER,
-    PRIMARY KEY (timesheet_id, workday_id),
-    FOREIGN KEY (timesheet_id) REFERENCES timesheet(id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
-    FOREIGN KEY (workday_id) REFERENCES workday(id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
-);
-"""
+@cache
+def get_queries() -> Any:
+    """Returns the aiosql queries object."""
+    sql_dir = imp.files("timeclock") / "sql"
+    return aiosql.from_path(sql_dir, "sqlite3")  # type: ignore
+
+
+Q = get_queries()
 
 
 @lru_cache
@@ -162,5 +110,7 @@ def transaction(conn: sqlite3.Connection) -> Generator[None, None, None]:
 def create_db(db_file: Path) -> None:
     """Create the database."""
     with db_conn(db_file) as conn:
-        conn.executescript(SCHEMA)
-        conn.commit()
+        with transaction(conn):
+            Q.create_schema(conn)
+        # conn.executescript(SCHEMA)
+        # conn.commit()

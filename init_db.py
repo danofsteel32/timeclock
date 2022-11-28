@@ -22,15 +22,15 @@ USERS = [
     ),
     users.register_user(
         email="jerry@chamberlainbuildersllc.com",
-        unhashed_password="password",
+        unhashed_password="",
         role=users.Role.OWNER,
-        username="jdawg",
+        username="Jerry",
     ),
     users.register_user(
         email="dan@chamberlainbuildersllc.com",
         unhashed_password="Coffee32",
         role=users.Role.EMPLOYEE,
-        username="danofsteel32",
+        username="Dan",
     ),
 ]
 
